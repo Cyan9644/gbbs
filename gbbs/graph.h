@@ -67,24 +67,6 @@ struct symmetric_graph {
   size_t num_vertices() const { return n; }
   size_t num_edges() const { return m; }
 
-  // ======== Graph operators that perform packing ========
-  template <class P>
-  uintE packNeighbors(uintE id, P &p, uint8_t *tmp) {
-    uintE new_degree =
-        get_vertex(id).out_neighbors().pack(p, (std::tuple<uintE, W> *)tmp);
-    v_data[id].degree = new_degree;  // updates the degree
-    return new_degree;
-  }
-
-  // degree must be <= old_degree
-  void decreaseVertexDegree(uintE id, uintE degree) {
-    assert(degree <= v_data[id].degree);
-    v_data[id].degree = degree;
-  }
-
-  // Sets the provided vertex's degree to zero.
-  void zeroVertexDegree(uintE id) { decreaseVertexDegree(id, 0); }
-
   // ======== Other useful graph operators ========
 
   // Apply the map operator f : (uintE * uintE * W) -> void
@@ -289,23 +271,6 @@ struct symmetric_ptr_graph {
 
   size_t num_vertices() const { return n; }
   size_t num_edges() const { return m; }
-
-  // ======== Graph operators that perform packing ========
-  template <class P>
-  uintE packNeighbors(uintE id, P &p, uint8_t *tmp) {
-    uintE new_degree =
-        get_vertex(id).out_neighbors().pack(p, (std::tuple<uintE, W> *)tmp);
-    vertices[id].degree = new_degree;  // updates the degree
-    return new_degree;
-  }
-
-  // degree must be <= old_degree
-  void decreaseVertexDegree(uintE id, uintE degree) {
-    assert(degree <= vertices[id].degree);
-    vertices[id].degree = degree;
-  }
-
-  void zeroVertexDegree(uintE id) { decreaseVertexDegree(id, 0); }
 
   sequence<std::tuple<uintE, uintE, W>> edges() const {
     using g_edge = std::tuple<uintE, uintE, W>;

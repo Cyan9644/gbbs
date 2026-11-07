@@ -31,17 +31,8 @@
 // weighted out-degree vertices in each iteration and spreads it evenly across
 // all source nodes.
 //
-// Note that we provide some alternate implementations of the same algorithm in
-// other files in this package (PageRank_edgeMapReduce and PageRank_delta). The
-// difference for the edgeMapReduce implementration are in how the matrix-vector
-// product is computed (in terms of cache-locality). The PageRank_delta
-// implementation implements an approximate version of PageRank that is faster
-// in many cases but is not yet carefully tested. The difference between
-// implementations (1) and (2) are some optimizations used to speed up how the
-// matrix-vector product works. We should carefully benchmark the two
-// implementations again, but from a few years ago (~2020), the PageRank code
-// was consistently faster than PageRank_edgeMap by 20--30% on the WDC2012
-// graph.
+// Upstream GBBS also had PageRank_edgeMapReduce and PageRank_delta variants.
+// They were removed in the core-slim branch along with edge_map_reduce.h.
 
 #pragma once
 
@@ -52,15 +43,10 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/container/flat_hash_set.h"
-#include "absl/status/statusor.h"
-#include "absl/types/span.h"
 #include "gbbs/bridge.h"
 #include "gbbs/edge_map_data.h"
 #include "gbbs/flags.h"
 #include "gbbs/helpers/assert.h"
-#include "gbbs/helpers/progress_reporting.h"
-#include "gbbs/helpers/status_macros.h"
 #include "gbbs/macros.h"
 #include "gbbs/vertex_subset.h"
 #include "parlay/monoid.h"
@@ -159,19 +145,15 @@ struct PR_F {
 //
 // If the source vector is empty, the algorithm sets the teleportation
 // probabilities and the initial PageRank values to 1/n for each node.
-//
-// If provided,`report_progress` will be called periodically to report the
-// progress of the computation.
 template <class Graph>
-absl::StatusOr<sequence<double>> PageRank_edgeMap(
-    const Graph& G, double eps = 0.000001, absl::Span<const uintE> sources = {},
-    double damping_factor = 0.85, size_t max_iters = 100,
-    bool has_in_edges = true,
-    std::optional<ReportProgressCallback> report_progress = std::nullopt) {
+sequence<double> PageRank_edgeMap(const Graph& G, double eps = 0.000001,
+                                  const sequence<uintE>& sources = {},
+                                  double damping_factor = 0.85,
+                                  size_t max_iters = 100,
+                                  bool has_in_edges = true) {
   pagerank_utils::ValidatePageRankParameters(eps, damping_factor);
   const uintE n = G.n;
   if (n == 0) {
-    if (report_progress.has_value()) (*report_progress)(1.0);
     return sequence<double>();
   }
 
@@ -179,14 +161,18 @@ absl::StatusOr<sequence<double>> PageRank_edgeMap(
   // Current PageRank values.
   sequence<double> p_curr;
 
-  absl::flat_hash_set<uintE> sources_set(sources.begin(), sources.end());
+  // is_source[v] is true iff v is a teleportation target. Only used when
+  // `sources` is non-empty.
+  sequence<bool> is_source;
   if (!sources.empty()) {
     // If the source set is non-empty, we need to set the initial mass over only
     // the sources.
     one_over_num_sources = 1 / (double)sources.size();
     p_curr = parlay::sequence<double>(n);
+    is_source = sequence<bool>(n, false);
     parlay::parallel_for(0, sources.size(), [&](size_t i) {
       p_curr[sources[i]] = one_over_num_sources;
+      is_source[sources[i]] = true;
     });
   } else {
     p_curr = sequence<double>(n, one_over_num_sources);
@@ -229,13 +215,6 @@ absl::StatusOr<sequence<double>> PageRank_edgeMap(
   // edgeMap does not require returning an output vertex subset.
   flags |= gbbs::no_output;
 
-  std::optional<gbbs::IterationProgressReporter> progress_reporter;
-  if (report_progress.has_value()) {
-    progress_reporter.emplace(*std::move(report_progress), max_iters,
-                              /*has_preprocessing=*/true);
-    RETURN_IF_ERROR(progress_reporter->PreprocessingComplete());
-  }
-
   // Each iteration uses `p_curr` to compute `p_next`, then swaps `p_curr` and
   // `p_next`, and sets `p_next` to zero in preparation for the next iteration.
   for (size_t iter = 0; iter < max_iters; ++iter) {
@@ -263,12 +242,10 @@ absl::StatusOr<sequence<double>> PageRank_edgeMap(
       // When we have sources, the teleportation probabilities are now uniform
       // across the source set. If desired, we could update this logic in the
       // future to use a user-specified distribution.
-      // TODO(laxmand): update this case so that we use a bit-vector for the
-      // sources since they are read-only.
       one_over_num_sources = 1 / (double)sources.size();
       double added_constant = (1 - damping_factor) * one_over_num_sources;
       parlay::parallel_for(0, n, [&](size_t i) {
-        if (sources_set.contains(i)) {
+        if (is_source[i]) {
           p_next[i] += dangling_sum * one_over_num_sources;
           p_next[i] = damping_factor * p_next[i] + added_constant;
         } else {
@@ -284,21 +261,13 @@ absl::StatusOr<sequence<double>> PageRank_edgeMap(
 
     // Swap p_curr and p_next. The final vector returned will be p_curr.
     std::swap(p_curr, p_next);
-    if (L1_norm < eps * n) {
-      if (progress_reporter.has_value()) {
-        RETURN_IF_ERROR(progress_reporter->IterationsDoneEarly());
-      }
-      break;
-    }
+    if (L1_norm < eps * n) break;
 
     gbbs_debug(std::cout << "L1_norm = " << L1_norm << std::endl;);
     // Reset p_curr
     parallel_for(0, n, [&](size_t i) { p_next[i] = 0.0; });
 
     gbbs_debug(t.stop(); t.next("iteration time"););
-    if (progress_reporter.has_value()) {
-      RETURN_IF_ERROR(progress_reporter->IterationComplete(iter));
-    }
   }
   gbbs_debug(auto max_pr = parlay::reduce_max(p_curr);
              std::cout << "max_pr = " << max_pr << std::endl;);

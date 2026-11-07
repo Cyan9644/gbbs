@@ -26,8 +26,6 @@
 // flags:
 //   optional:
 //     -eps : the epsilon to use for convergence (1e-6 by default)
-//     -l_eps : the local epsilon to use for convergence (1e-2 by default);
-//      used by PageRankDelta only
 //     -damping_factor : the damping factor used in the PageRank updates (0.85
 //      by default)
 //     -c : indicate that the graph is compressed
@@ -35,12 +33,9 @@
 //     -s : indicate that the graph is symmetric
 
 #include "PageRank.h"
-#include "PageRank_delta.h"
-#include "PageRank_edgeMapReduce.h"
 
 #include <cstddef>
 #include <iostream>
-
 
 #include "gbbs/benchmark.h"
 #include "gbbs/bridge.h"
@@ -57,8 +52,6 @@ double PageRank_runner(Graph& G, commandLine P) {
   std::cout << "### m: " << G.m << std::endl;
   std::cout << "### Params: -eps = " << P.getOptionDoubleValue("-eps", 0.000001)
             << std::endl;
-  std::cout << "### Params: -leps = " << P.getOptionDoubleValue("-leps", 0.01)
-            << std::endl;
   std::cout << "### Params: -damping_factor = "
             << P.getOptionDoubleValue("-damping_factor", 0.85) << std::endl;
   std::cout << "### ------------------------------------" << std::endl;
@@ -66,17 +59,13 @@ double PageRank_runner(Graph& G, commandLine P) {
   timer t;
   t.start();
   double eps = P.getOptionDoubleValue("-eps", 0.000001);
-  double local_eps = P.getOptionDoubleValue("-leps", 0.01);
   double damping_factor = P.getOptionDoubleValue("-damping_factor", 0.85);
   size_t iters = P.getOptionLongValue("-iters", 100);
-  if (P.getOptionValue("-em")) {
-    auto ret = PageRank_edgeMap(G, eps, /*sources=*/{}, damping_factor, iters);
-  } else if (P.getOptionValue("-delta")) {
-    auto ret = delta::PageRankDelta(G, eps, local_eps, damping_factor, iters);
-  } else {
-    auto ret = PageRank_edgeMapReduce(G, eps, /*sources=*/{}, damping_factor, iters);
-  }
+  auto ret = PageRank_edgeMap(G, eps, /*sources=*/{}, damping_factor, iters);
   double tt = t.stop();
+  if (!ret.empty()) {
+    std::cout << "### max PageRank: " << parlay::reduce_max(ret) << std::endl;
+  }
 
   std::cout << "### Running Time: " << tt << std::endl;
   return tt;
