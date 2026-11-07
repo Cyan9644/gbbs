@@ -24,22 +24,6 @@ cc_binary(
 )
 
 cc_binary(
-    name = "random_reorder",
-    srcs = ["random_reorder.cc"],
-    deps = [
-        "//gbbs",
-    ],
-)
-
-cc_binary(
-    name = "to_edge_list",
-    srcs = ["to_edge_list.cc"],
-    deps = [
-        "//gbbs",
-    ],
-)
-
-cc_binary(
     name = "snap_converter",
     srcs = ["snap_converter.cc"],
     deps = [

@@ -20,15 +20,6 @@ cc_library(
 )
 
 # main header for Julienne
-cc_library(
-    name = "julienne",
-    hdrs = ["julienne.h"],
-    deps = [
-        ":bucket",
-        ":gbbs",
-        "//gbbs/helpers:dyn_arr",
-    ],
-)
 
 cc_library(
     name = "bridge",
@@ -47,16 +38,6 @@ cc_library(
         "@parlaylib//parlay:utilities",
         "@parlaylib//parlay/internal:binary_search",
         "@parlaylib//parlay/internal:get_time",
-    ],
-)
-
-cc_library(
-    name = "bucket",
-    hdrs = ["bucket.h"],
-    deps = [
-        ":bridge",
-        ":vertex_subset",
-        "//gbbs/helpers:dyn_arr",
     ],
 )
 
@@ -82,17 +63,6 @@ cc_library(
 )
 
 cc_library(
-    name = "edge_map_reduce",
-    hdrs = ["edge_map_reduce.h"],
-    deps = [
-        ":bridge",
-        ":flags",
-        ":vertex_subset",
-        "//gbbs/helpers:histogram",
-    ],
-)
-
-cc_library(
     name = "edge_map_utils",
     hdrs = ["edge_map_utils.h"],
     deps = [
@@ -112,18 +82,6 @@ cc_library(
 cc_library(
     name = "flags",
     hdrs = ["flags.h"],
-)
-
-cc_library(
-    name = "graph_mutation",
-    hdrs = ["graph_mutation.h"],
-    deps = [
-        ":bridge",
-        ":compressed_vertex",
-        ":edge_array",
-        ":vertex",
-        ":vertex_subset",
-    ],
 )
 
 cc_library(
@@ -168,21 +126,10 @@ cc_library(
     deps = [
         ":edge_array",
         ":edge_map_data",
-        ":edge_map_reduce",
         ":flags",
         ":graph",
-        ":graph_mutation",
         ":macros",
         ":vertex_subset",
-    ],
-)
-
-cc_library(
-    name = "contract",
-    hdrs = ["contract.h"],
-    deps = [
-        ":graph",
-        "//gbbs/helpers:sparse_table",
     ],
 )
 
