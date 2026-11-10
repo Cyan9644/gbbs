@@ -189,3 +189,21 @@ cc_library(
         ":macros",
     ],
 )
+
+# SSD backend for fetch_edges, over EM-graph's SemiEMGraph. Builds only inside
+# the PLAID workspace (it needs //graph); see ssd/install_into_plaid.sh.
+# Tagged manual so `bazel build //...` in the gbbs repo skips it.
+cc_library(
+    name = "ssd_graph",
+    hdrs = [
+        "ssd_fetch_edges.h",
+        "ssd_graph.h",
+    ],
+    tags = ["manual"],
+    deps = [
+        ":bridge",
+        ":fetch_edges",
+        ":macros",
+        "//graph:semi_em_graph",
+    ],
+)

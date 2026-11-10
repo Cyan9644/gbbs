@@ -59,7 +59,7 @@ inline sequence<uintE> BFS(Graph& G, uintE src) {
     std::cout << Frontier.size() << "\n";
     reachable += Frontier.size();
     Frontier = edgeMap(G, Frontier, BFS_F<W>(Parents.begin()), -1,
-                       sparse_blocked | dense_parallel);
+                       dense_parallel);
   }
   std::cout << "Reachable: " << reachable << "\n";
   return Parents;
