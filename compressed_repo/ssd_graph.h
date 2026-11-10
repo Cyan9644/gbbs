@@ -56,6 +56,7 @@ struct ssd_graph {
     m = sem_->m;
 
     timer t;  // starts on construction
+    skip_buf_ = FrontierBitset(n);
     degrees_ = sequence<uintE>(n, 0);
     uintE* deg = degrees_.data();
     sem_->StreamActiveSlots(nullptr, [&](vertex_id u, const vertex_id*,
@@ -82,9 +83,16 @@ struct ssd_graph {
   // changes the reader's internal state, hence the unique_ptr.
   sem_graph& sem() const { return *sem_; }
 
+  // Scratch for dense reads: one bit per vertex marking "no need to read v".
+  // fetch_edges overwrites every word each round, so it is allocated once
+  // here instead of once per round (an n-bit bitmap is 445 MiB on the
+  // hyperlink graph). Only one fetch_edges runs at a time on a graph.
+  FrontierBitset& skip_buf() const { return skip_buf_; }
+
  private:
   std::unique_ptr<sem_graph> sem_;
   sequence<uintE> degrees_;
+  mutable FrontierBitset skip_buf_;
 };
 
 }  // namespace gbbs

@@ -204,6 +204,7 @@ cc_library(
         ":bridge",
         ":fetch_edges",
         ":macros",
+        "//graph:block_format",
         "//graph:semi_em_graph",
     ],
 )
